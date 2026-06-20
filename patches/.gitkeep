@@ -1,0 +1,5 @@
+# This file exists so patches/ is tracked by git even when empty.
+# Source modifications made during Phase 1 land here as numbered .patch files:
+#   0001-bypass-docker-openvino-build.patch
+#   0002-windows-no-ldscript.patch
+#   0003-... (POSIX headers, etc.)

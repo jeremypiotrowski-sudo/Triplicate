@@ -1,0 +1,137 @@
+# commands.txt — Triplicate
+# Source of truth #1: every command, as run.
+# Append-only. Never edit a past line. If a command is wrong, run the
+# corrected one and append it with a "# FIX:" note explaining why.
+
+# ============================================================================
+# Phase 0 — Triplicate bootstrap
+# ============================================================================
+git init
+git add .gitignore commands.txt BUILD_LOG.md README.md patches/.gitkeep
+git commit -m "Triplicate: bootstrap — folder, .gitignore, commands.txt, BUILD_LOG.md, README.md, patches/"
+
+# ============================================================================
+# Phase 0.5 — Pre-built check
+# ============================================================================
+# Download the official NVIDIA Windows Triton binary.
+# Target: tritonserver2.53.1-win.zip (or newest available)
+# Location: vendor/triton/
+# mkdir vendor\triton
+# curl -L -o vendor\triton\tritonserver2.53.1-win.zip <URL>
+# (URL to be confirmed from GitHub releases / SourceForge mirror)
+
+# Extract the zip:
+# cd vendor\triton && tar -xf tritonserver2.53.1-win.zip && cd ..\..
+
+# Inspect the OpenVINO backend folder:
+# dir /s vendor\triton\tritonserver\backends\openvino\*.dll
+
+# Probe the bundled OpenVINO (2024.5.0) for NPU support:
+# vendor\triton\tritonserver\openvino\setupvars.bat
+# benchmark_app -d NPU -m <tiny-ir-model>
+
+# Record the outcome in BUILD_LOG.md under "Phase 0.5 — outcome".
+# Four possible outcomes:
+#   A) DLL present + NPU works at 2024.5.0       → skip Phase 1, go to Phase 2
+#   B) DLL present + NPU works + want 2025.4.0   → Phase 1 runs as upgrade
+#                                                  (old DLL is fallback)
+#   C) DLL present + NPU broken / too old         → Phase 1 runs as swap-in
+#   D) No DLL in zip                              → Phase 1 runs as full build
+# git commit -m "Triplicate: Phase 0.5 — prebuilt DLL inspection"
+
+# ============================================================================
+# Phase 1 — Build (or swap) the OpenVINO backend DLL  [CONDITIONAL on 0.5]
+# ============================================================================
+# Dependencies:
+#   VS Build Tools 2022 + C++ workload (in progress separately)
+#   OpenVINO C++ SDK 2025.4.0 → vendor/openvino/
+#     URL: https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.4/windows/openvino_toolkit_windows_2025.4.0.20398.8fdad55727d_x86_64.zip
+#   rapidjson → vendor/rapidjson/  (vcpkg install rapidjson OR header-only release)
+
+# Clone the upstream backend:
+# git clone https://github.com/triton-inference-server/openvino_backend src\openvino_backend
+
+# Configure (Visual Studio 17 2022 generator, x64):
+# cmake -B build -G "Visual Studio 17 2022" -A x64 ^
+#   -DCMAKE_INSTALL_PREFIX=build/install ^
+#   -DOpenVINO_DIR="C:/Program Files (x86)/Intel/openvino_2025.4.0/runtime/cmake" ^
+#   -DTRITON_BUILD_USE_PREBUILT_OPENVINO=ON ^
+#   -DTRITON_COMMON_REPO_TAG=main ^
+#   -DTRITON_CORE_REPO_TAG=main ^
+#   -DTRITON_BACKEND_REPO_TAG=main
+
+# Build:
+# cmake --build build --config Release
+
+# Expected output:
+#   build/install/backends/openvino/triton_openvino.dll  (or libtriton_openvino.dll)
+
+# Verify linkage:
+# dumpbin /dependents build\install\backends\openvino\triton_openvino.dll
+
+# Expected patches (each saved to patches/ the moment it's made):
+#   0001-bypass-docker-openvino-build.patch
+#   0002-windows-no-ldscript.patch
+#   0003+, 0004+, ... (POSIX headers: dlfcn.h, pthread, unistd.h)
+
+# Swap into the extracted Triton runtime:
+# copy build\install\backends\openvino\triton_openvino.dll ^
+#      runtime\triton\backends\openvino\1.0\triton_openvino.dll
+
+# git commit -m "Triplicate: Phase 1 — triton_openvino.dll builds"
+
+# ============================================================================
+# Phase 2 — Verify the backend works inside Triton
+# ============================================================================
+# Env vars (per NVIDIA release notes for tritonserver2.53.1-win):
+#   CUDA 12.6.3, cuDNN 9.6.0.74, TensorRT 10.7.0.23
+# (Set via PATH or a setenv.bat; record exact values in BUILD_LOG.md)
+
+# Tiny OpenVINO IR test model → runtime/models/embedder/1/
+#   (bert-small IR or similar, pre-converted from HuggingFace openvino org)
+
+# Start the server:
+# runtime\triton\tritonserver.exe --model-repository=runtime\models\ --log-verbose=2
+
+# Health + model checks:
+# curl http://localhost:8000/v2/health/ready
+# curl http://localhost:8000/v2/models/embedder
+# curl http://localhost:8002/metrics   # look for NPU device
+
+# git commit -m "Triplicate: Phase 2 — Triton loads OpenVINO backend, NPU responds to inference"
+
+# ============================================================================
+# Phase 3 — Full stack: GPU + NPU behind one endpoint
+# ============================================================================
+# Concrete models (chosen now so Phase 3 has a target):
+#   LLM (GPU, TensorRT):      Qwen3-8B or Llama 3.2 3B → model.plan
+#   Embedder (NPU, OpenVINO):  BGE-M3                    → model.xml + model.bin
+#   Reranker (NPU, OpenVINO):  BGE Reranker v2 M3        → model.xml + model.bin
+# All pre-converted variants exist on HuggingFace under the OpenVINO org.
+
+# Model repository layout:
+#   runtime/models/
+#   ├── llm/
+#   │   ├── config.pbtxt          # backend: "tensorrt", instance_group KIND_GPU
+#   │   └── 1/model.plan
+#   ├── embedder/
+#   │   ├── config.pbtxt          # backend: "openvino", TARGET_DEVICE="NPU"
+#   │   └── 1/model.xml + model.bin
+#   └── reranker/
+#       ├── config.pbtxt          # backend: "openvino", TARGET_DEVICE="NPU"
+#       └── 1/model.xml + model.bin
+
+# Start server, hit endpoint, confirm GPU + NPU both active in :8002/metrics
+# git commit -m "Triplicate: Phase 3 — single endpoint serving GPU + NPU simultaneously"
+
+# ============================================================================
+# Phase 4 — Package for sharing
+# ============================================================================
+# Create GitHub repo "Triplicate", branch windows-build
+# Write BUILD_WINDOWS.md (Triplicate preamble + every step, stranger-runnable)
+# Collect patches/ into PATCHES.md index
+# Build GitHub Release zip:
+#   triton_openvino.dll + OpenVINO runtime DLLs + test model + QUICKSTART.md
+# Open upstream PR to triton-inference-server/openvino_backend:
+#   "Triplicate: Windows native build support"
+# git commit -m "Triplicate: Phase 4 — BUILD_WINDOWS.md + GitHub Release + upstream PR"
