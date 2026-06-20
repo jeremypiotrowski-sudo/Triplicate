@@ -19,22 +19,50 @@ It means: nobody at NVIDIA tested this. It does not mean: it won't work.
 
 ## Phase 0 — Triplicate bootstrap
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE (local) — push to GitHub pending
 **Started:** 2026-06-20
 
-Bootstrap files created: `.gitignore`, `commands.txt`, `BUILD_LOG.md`,
-`README.md`, `patches/.gitkeep`. First commit pending.
-
 ### What happened
-- Initialized this BUILD_LOG with the Triplicate contract (above).
-- `commands.txt` seeded with the full six-phase command skeleton.
-- `.gitignore` configured: ignores `build/`, `runtime/`, vendor zips,
-  intermediate MSVC artifacts.
+- Five files created: `.gitignore`, `commands.txt`, `BUILD_LOG.md`, `README.md`, `patches/.gitkeep`
+- `git init .` — repo initialized in `c:\Users\jp\Documents\Triplicate\.git\`
+- Git identity set (local, not global): `Jeremy Piotrowski` / `jeremypiotrowski@yahoo.com`
+- `git add` — all five files staged
+- `git commit` — commit `acadf15` landed: "Triplicate: bootstrap - folder, .gitignore, commands.txt, BUILD_LOG.md, README.md, patches/"
+- `git branch -M main` — renamed default branch from `master` to `main`
+- `git remote add origin https://github.com/jeremypiotrowski-sudo/Triplicate.git` — remote configured
+- `git push -u origin main` — **FAILED**: auth could not complete
 
-### Next
-- Create `README.md` (Triplicate manifest, stranger-facing framing).
-- Create `patches/.gitkeep`.
-- `git init` + first commit.
+### Push failure — root cause
+The Cline terminal cannot display the Git Credential Manager interactive login dialog. The credential helper is `manager` (correct), but the askpass script (`c:\Users\jp\AppData\Roaming\Code\User\globalStorage\vscode.git\askpass\...\askpass.sh`) is not accessible from the Cline terminal context. Clearing `GIT_ASKPASS` did not resolve it — git still can't read a username.
+
+### Fix (when ready to push)
+Run ONE of these from a terminal that CAN show a login dialog:
+
+**Option 1 — VS Code integrated terminal (not Cline):**
+Open VS Code's own terminal (Ctrl+`) and run:
+```
+cd c:\Users\jp\Documents\Triplicate
+git push -u origin main
+```
+The Credential Manager popup will appear — log in with GitHub, push completes.
+
+**Option 2 — Any external terminal (Windows Terminal, cmd, PowerShell):**
+```
+cd c:\Users\jp\Documents\Triplicate
+git push -u origin main
+```
+Same popup, same result.
+
+**Option 3 — If you have a GitHub Personal Access Token:**
+```
+git remote set-url origin https://<TOKEN>@github.com/jeremypiotrowski-sudo/Triplicate.git
+git push -u origin main
+```
+
+### What's durable right now
+- Commit `acadf15` is on disk, on branch `main`, working tree clean
+- The remote is configured — just needs the push to complete
+- Nothing is lost. The push can happen from any terminal at any time.
 
 ---
 
