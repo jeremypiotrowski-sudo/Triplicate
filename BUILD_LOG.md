@@ -19,7 +19,7 @@ It means: nobody at NVIDIA tested this. It does not mean: it won't work.
 
 ## Phase 0 — Triplicate bootstrap
 
-**Status:** COMPLETE (local) — push to GitHub pending
+**Status:** COMPLETE — pushed to GitHub
 **Started:** 2026-06-20
 
 ### What happened
@@ -60,9 +60,15 @@ git push -u origin main
 ```
 
 ### What's durable right now
-- Commit `acadf15` is on disk, on branch `main`, working tree clean
-- The remote is configured — just needs the push to complete
-- Nothing is lost. The push can happen from any terminal at any time.
+- All commits pushed to GitHub: `a2f539d..6e9941f main -> main`
+- Repo is LIVE at https://github.com/jeremypiotrowski-sudo/Triplicate
+- Auth resolved: Git Credential Manager popup appeared and authenticated
+- Three commits on `main`:
+  - `acadf15` — bootstrap (5 files)
+  - `045e784` — Phase 0 complete (BUILD_LOG updated)
+  - `6e9941f` — merge remote README, keep local manifest
+- Branch `main` tracking `origin/main`
+- Working tree clean. Nothing lost. Phase 0 COMPLETE for real.
 
 ---
 
