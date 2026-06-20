@@ -121,16 +121,49 @@ The DLL doesn't need to be built. It needs to be TESTED (Phase 2).
 
 ## Phase 1 — Build (or swap) the OpenVINO backend DLL
 
-**Status:** NOT STARTED (conditional on Phase 0.5 outcome)
+**Status:** SKIPPED — Phase 0.5 outcome A (NVIDIA already built it)
 
-### Patches applied
-_(numbered list, updated as each patch is created in patches/)_
+NVIDIA's v2.51.0 Windows binary includes `triton_openvino.dll` with the
+`openvino_intel_npu_plugin.dll`. No source build needed.
+
+Phase 1 may be revisited later if a newer OpenVINO version (2025.4.0)
+is needed for specific model support. The bundled version is OpenVINO 2024.
 
 ---
 
 ## Phase 2 — Verify the backend works inside Triton
 
-**Status:** NOT STARTED
+**Status:** IN PROGRESS — blocked on missing CUDA dependencies
+**Date:** 2026-06-20
+
+### What happened
+- Copied `vendor\triton\tritonserver\` to `runtime\` (57 files, all backends present)
+- `tritonserver.exe --help` produces 0 bytes output, exit code 0 (silent failure)
+- Python ctypes test (`runtime\bin\test_load.py`) confirmed: `tritonserver.dll`
+  cannot load — missing dependencies:
+  - `cudart64_12.dll` — MISSING (Triton 2.51.0 built for CUDA 12.x)
+  - `cublas64_12.dll` — MISSING
+  - `cudnn64_8.dll` or `cudnn64_9.dll` — MISSING (cuDNN not installed)
+  - `nvinfer.dll` — MISSING (TensorRT not installed)
+  - `nvinfer_plugin.dll` — MISSING
+
+### Root cause
+Triton 2.51.0 was built against CUDA 12.x. System has CUDA 13.3 installed
+(nvcc only, no runtime DLLs in bin/). The CUDA runtime libraries (cudart,
+cublas), cuDNN, and TensorRT are all missing.
+
+### What's needed to proceed
+1. **CUDA 12.x runtime DLLs** — install CUDA 12.6.3 (Triton 2.51.0's expected
+   version) OR copy cudart64_12.dll + cublas64_12.dll from a CUDA 12.x install
+2. **cuDNN** — download cuDNN 9.x for CUDA 12.x from NVIDIA, copy DLLs to PATH
+3. **TensorRT** — download TensorRT 10.x from NVIDIA, copy DLLs to PATH
+
+**Alternative path (NPU-only, skip GPU):**
+- Try removing/renaming the tensorrt backend folder so tritonserver doesn't
+  try to load it
+- May still need cudart/cublas for tritonserver.dll itself (not just the
+  tensorrt backend)
+- This would test OpenVINO/NPU without needing full GPU stack
 
 ---
 
