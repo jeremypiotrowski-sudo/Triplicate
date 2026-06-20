@@ -74,21 +74,48 @@ git push -u origin main
 
 ## Phase 0.5 — Pre-built check
 
-**Status:** NOT STARTED
-
-### Outcome (to be recorded here)
-One of:
-- **A)** `triton_openvino.dll` present + NPU works at OpenVINO 2024.5.0
-       → skip Phase 1, go to Phase 2
-- **B)** DLL present + NPU works + want 2025.4.0 for a specific model
-       → Phase 1 runs as *upgrade* (old DLL is fallback)
-- **C)** DLL present + NPU broken / too old
-       → Phase 1 runs as *swap-in*
-- **D)** No DLL in zip
-       → Phase 1 runs as *full build*
+**Status:** COMPLETE — OUTCOME A (skip Phase 1, go to Phase 2)
+**Date:** 2026-06-20
 
 ### What I found
-_(fill in after running the Phase 0.5 commands in commands.txt)_
+
+NVIDIA already ships a complete Windows Triton binary with OpenVINO + NPU support.
+
+Downloaded `tritonserver2.51.0-win.zip` (371MB) from GitHub releases.
+Note: v2.51.0 is the LAST Windows release. Newer versions (v2.65.0, v2.66.0)
+say "Windows support is deprecated" and point back to v2.51.0.
+
+Extracted to `vendor\triton\tritonserver\`. Contents:
+
+**tritonserver.exe:** `bin\tritonserver.exe` ✅
+
+**Backends (all present):**
+- `openvino\` — `triton_openvino.dll` ✅ + OpenVINO runtime DLLs
+  - **`openvino_intel_npu_plugin.dll`** ✅ — NPU support is BUILT IN
+  - `openvino_intel_cpu_plugin.dll` ✅
+  - `openvino_intel_gpu_plugin.dll` ✅
+  - `openvino_c.dll`, `openvino.dll`, frontends, etc.
+- `tensorrt\` ✅ — for RTX 5050 GPU inference
+- `onnxruntime\` ✅
+- `python\` ✅
+- `identity\` ✅
+
+### Outcome: A
+
+`triton_openvino.dll` is present AND includes `openvino_intel_npu_plugin.dll`.
+This is the complete Windows Triton stack with GPU + NPU support.
+
+**Phase 1 (build from source) is SKIPPED.** NVIDIA already did the work.
+The DLL doesn't need to be built. It needs to be TESTED (Phase 2).
+
+### What this means for the project
+
+- Phase 1 becomes unnecessary for basic operation
+- Phase 1 may still be needed later if a NEWER OpenVINO version is required
+  (the bundled version's exact number TBD — need to check)
+- Phase 2 can proceed directly: copy to runtime/, set up a test model, start server
+- The "Triplicate" framing still holds — three sources of truth, three silicon paths
+  The contribution shifts from "build it" to "document and verify it works"
 
 ---
 

@@ -1,0 +1,2 @@
+# vendor/triton/ — extracted NVIDIA Triton Windows binary goes here
+# Downloaded via: curl.exe -L -o vendor\triton\tritonserver2.53.1-win.zip <URL>
